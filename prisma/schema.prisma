@@ -38,6 +38,24 @@ model Account {
 
   user        User         @relation(fields: [userId], references: [id])
 
+  outgoingTransactions Transaction[] @relation("outgoingTransactions")
+  incomingTransactions Transaction[] @relation("incomingTransactions")
+
+}
+
+model Transaction {
+  id              String          @id @default(uuid())
+  sourceAccountId       String?
+  type            TransactionType
+  amount          Float
+  status          TransactionStatus @default(PENDING)
+  createdAt     DateTime        @default(now())
+  description     String?
+
+  sourceAccount         Account?        @relation("outgoingTransactions", fields: [sourceAccountId], references: [id])
+
+  destinationAccountId String?
+  destinationAccount   Account?       @relation("incomingTransactions", fields: [destinationAccountId], references: [id])  
 }
 
 enum AccountType {
@@ -49,4 +67,17 @@ enum AccountStatus {
   ACTIVE
   FROZEN
   CLOSED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
 }
