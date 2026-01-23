@@ -1,11 +1,24 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import compression from 'compression';
 import 'dotenv/config';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Sécurité - Helmet (protection headers HTTP)
+  app.use(
+    helmet({
+      contentSecurityPolicy: process.env.NODE_ENV === 'production',
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
+
+  // Compression
+  app.use(compression());
   app.useGlobalPipes(new ValidationPipe());
 
   app.enableCors();
@@ -35,7 +48,7 @@ async function bootstrap() {
       'JWT-auth',
     )
     .addServer('http://localhost:3000', 'Développement')
-    .addServer('https://api.banking.example.com', 'Production')
+    .addServer(process.env.URL_PROD || '', 'Production')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
