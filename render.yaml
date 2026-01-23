@@ -18,4 +18,3 @@ services:
         generateValue: true
       - key: JWT_EXPIRATION
         value: 1h
-    healthCheckPath: /health

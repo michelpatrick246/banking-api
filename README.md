@@ -42,7 +42,7 @@ Elle permet de gérer des **comptes bancaires**, des **transactions** (dépôt, 
 ### 1️⃣ Cloner le projet
 
 ```bash
-git clone https://github.com/your-username/banking-api.git
+git clone https://github.com/michelpatrick246/banking-api.git
 cd banking-api
 ```
 
