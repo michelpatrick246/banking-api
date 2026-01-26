@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
 import 'dotenv/config';
@@ -7,8 +8,21 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Compression
+  app.use(compression());
+  app.useGlobalPipes(new ValidationPipe());
+
+  app.enableCors({
+    origin: '*',
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 600,
+    credentials: true,
+  });
+
+  app.set('trust proxy', 'loopback');
   // Sécurité - Helmet (protection headers HTTP)
   app.use(
     helmet({
@@ -16,12 +30,6 @@ async function bootstrap() {
       crossOriginEmbedderPolicy: false,
     }),
   );
-
-  // Compression
-  app.use(compression());
-  app.useGlobalPipes(new ValidationPipe());
-
-  app.enableCors();
 
   // Configuration Swagger
   const config = new DocumentBuilder()

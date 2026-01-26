@@ -5,7 +5,7 @@ import { IsEnum, IsNumber, IsOptional, Min } from 'class-validator';
 export class CreateAccountDto {
   @ApiProperty({
     enum: AccountType,
-    example: AccountType.CHECKING,
+    example: 'CHECKING',
     description: 'Type de compte bancaire',
   })
   @IsEnum(AccountType)

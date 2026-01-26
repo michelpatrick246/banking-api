@@ -13,13 +13,14 @@ import {
   ApiOperation,
   ApiResponse,
 } from '@nestjs/swagger';
-import type { User } from '@prisma/client';
+import { Role, type User } from '@prisma/client';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { Roles } from 'src/common/decorators/roles.decorator';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/auth.guard';
-
+import { RolesGuard } from './guards/roles.guard';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -119,5 +120,36 @@ export class AuthController {
   })
   getProfile(@CurrentUser() user: User) {
     return user;
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('admin')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Accès administrateur',
+    description:
+      'Point de terminaison accessible uniquement aux administrateurs.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Accès administrateur accordé',
+    schema: {
+      example: 'Admin access granted',
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Accès refusé pour les utilisateurs non administrateurs',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'Forbidden resource',
+        error: 'Forbidden',
+      },
+    },
+  })
+  testAdmin() {
+    return 'Admin access granted';
   }
 }
