@@ -1,19 +1,24 @@
 import {
-    BadRequestException,
-    Injectable,
-    NotFoundException,
+  BadRequestException,
+  Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import {
-    AccountStatus,
-    TransactionStatus,
-    TransactionType,
+  AccountStatus,
+  AuditAction,
+  TransactionStatus,
+  TransactionType,
 } from '@prisma/client';
+import { AuditLogService } from 'src/audit_log/audit_log.service';
 import { DatabaseService } from 'src/database/database.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 
 @Injectable()
 export class TransactionsService {
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   async create(userId: number, createTransactionDto: CreateTransactionDto) {
     const { type, amount, sourceAccountId, destinationAccountNumber } =
@@ -37,7 +42,7 @@ export class TransactionsService {
   }
 
   private async deposit(userId: number, dto: CreateTransactionDto) {
-    return await this.databaseService.$transaction(async (tx) => {
+    const transaction = await this.databaseService.$transaction(async (tx) => {
       const account = await tx.account.findUnique({
         where: { id: dto.destinationAccountId, userId },
       });
@@ -50,16 +55,6 @@ export class TransactionsService {
         throw new BadRequestException('Account is not active');
       }
 
-      const transaction = await tx.transaction.create({
-        data: {
-          type: dto.type,
-          amount: dto.amount,
-          description: dto.description,
-          destinationAccountId: account.id,
-          status: TransactionStatus.COMPLETED,
-        },
-      });
-
       await tx.account.update({
         where: { id: dto.destinationAccountId },
         data: {
@@ -69,12 +64,35 @@ export class TransactionsService {
         },
       });
 
-      return transaction;
+      return await tx.transaction.create({
+        data: {
+          type: dto.type,
+          amount: dto.amount,
+          description: dto.description,
+          destinationAccountId: account.id,
+          status: TransactionStatus.COMPLETED,
+        },
+      });
     });
+
+    this.auditLogService.log({
+      userId,
+      action: AuditAction.DEPOSIT,
+      entityType: 'Transaction',
+      entityId: transaction.id,
+      details: {
+        type: dto.type,
+        amount: dto.amount,
+        destinationAccountId: dto.destinationAccountId,
+        description: dto.description,
+      },
+    });
+
+    return transaction;
   }
 
   private async transfer(userId: number, dto: CreateTransactionDto) {
-    return await this.databaseService.$transaction(async (tx) => {
+    const transaction = await this.databaseService.$transaction(async (tx) => {
       const [sourceAccount, destAccount] = await Promise.all([
         tx.account.findUnique({
           where: { id: dto.sourceAccountId, userId },
@@ -83,6 +101,9 @@ export class TransactionsService {
           where: { accountNumber: dto.destinationAccountNumber },
         }),
       ]);
+
+      console.log('Source Account:', sourceAccount);
+      console.log('Destination Account:', destAccount);
 
       if (!sourceAccount) {
         throw new NotFoundException('Source account not found');
@@ -110,13 +131,13 @@ export class TransactionsService {
         throw new BadRequestException('Insufficient funds');
       }
 
-      const newDestBalance = Number(destAccount.balance) + dto.amount;
-
       // 2️⃣ Débit du compte source
       await tx.account.update({
         where: { id: sourceAccount.id },
         data: {
-          balance: newSourceBalance,
+          balance: {
+            decrement: dto.amount,
+          },
         },
       });
 
@@ -124,11 +145,13 @@ export class TransactionsService {
       await tx.account.update({
         where: { id: destAccount.id },
         data: {
-          balance: newDestBalance,
+          balance: {
+            increment: dto.amount,
+          },
         },
       });
 
-      const transaction = await tx.transaction.create({
+      return await tx.transaction.create({
         data: {
           type: dto.type,
           amount: dto.amount,
@@ -138,9 +161,22 @@ export class TransactionsService {
           status: TransactionStatus.COMPLETED,
         },
       });
-
-      return transaction;
     });
+
+    await this.auditLogService.log({
+      userId,
+      action: AuditAction.TRANSFER,
+      entityType: 'Transaction',
+      entityId: transaction.id,
+      details: {
+        amount: dto.amount,
+        sourceAccountId: dto.sourceAccountId,
+        destinationAccountNumber: dto.destinationAccountNumber,
+        description: dto.description,
+      },
+    });
+
+    return transaction;
   }
 
   async findAllByAccount(accountId: string, userId: number) {

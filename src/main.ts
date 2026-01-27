@@ -12,7 +12,13 @@ async function bootstrap() {
 
   // Compression
   app.use(compression());
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, //Supprime les propriétés non définies dans les DTO
+      forbidNonWhitelisted: true, //Lance une erreur si des propriétés non définies sont présentes
+      transform: true,
+    }),
+  );
 
   app.enableCors({
     origin: '*',

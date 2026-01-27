@@ -64,6 +64,33 @@ model Transaction {
   destinationAccount   Account?       @relation("incomingTransactions", fields: [destinationAccountId], references: [id])  
 }
 
+model AuditLog {
+  id        String     @id @default(uuid())
+  userId    Int?
+  action    AuditAction
+  details  Json?
+  ipAddress String?
+  entity    String?
+  entityId  String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, action, createdAt])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  CREATE_ACCOUNT
+  DEPOSIT
+  TRANSFER
+  WITHDRAW
+  UPDATE_ACCOUNT
+  DELETE_ACCOUNT
+  FAILED_TRANSACTION
+}
+
 enum AccountType {
   CHECKING
   SAVINGS
