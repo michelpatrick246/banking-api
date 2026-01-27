@@ -89,6 +89,7 @@ enum AuditAction {
   UPDATE_ACCOUNT
   DELETE_ACCOUNT
   FAILED_TRANSACTION
+  CREATE_TRANSACTION
 }
 
 enum AccountType {

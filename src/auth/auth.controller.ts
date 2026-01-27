@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Post,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -14,14 +15,17 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { Role, type User } from '@prisma/client';
+import { AuditAction } from 'src/common/decorators/audit-action.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Roles } from 'src/common/decorators/roles.decorator';
+import { AuditInterceptor } from 'src/common/interceptor/audit_log.interceptor';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 @Controller('auth')
+@UseInterceptors(AuditInterceptor)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -67,6 +71,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @AuditAction('LOGIN', 'User')
   @ApiOperation({
     summary: 'Se connecter',
     description: 'Authentifie un utilisateur et retourne un token JWT',

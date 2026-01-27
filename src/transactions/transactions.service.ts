@@ -5,9 +5,8 @@ import {
 } from '@nestjs/common';
 import {
   AccountStatus,
-  AuditAction,
   TransactionStatus,
-  TransactionType,
+  TransactionType
 } from '@prisma/client';
 import { AuditLogService } from 'src/audit_log/audit_log.service';
 import { DatabaseService } from 'src/database/database.service';
@@ -73,19 +72,6 @@ export class TransactionsService {
           status: TransactionStatus.COMPLETED,
         },
       });
-    });
-
-    this.auditLogService.log({
-      userId,
-      action: AuditAction.DEPOSIT,
-      entityType: 'Transaction',
-      entityId: transaction.id,
-      details: {
-        type: dto.type,
-        amount: dto.amount,
-        destinationAccountId: dto.destinationAccountId,
-        description: dto.description,
-      },
     });
 
     return transaction;
@@ -161,19 +147,6 @@ export class TransactionsService {
           status: TransactionStatus.COMPLETED,
         },
       });
-    });
-
-    await this.auditLogService.log({
-      userId,
-      action: AuditAction.TRANSFER,
-      entityType: 'Transaction',
-      entityId: transaction.id,
-      details: {
-        amount: dto.amount,
-        sourceAccountId: dto.sourceAccountId,
-        destinationAccountNumber: dto.destinationAccountNumber,
-        description: dto.description,
-      },
     });
 
     return transaction;

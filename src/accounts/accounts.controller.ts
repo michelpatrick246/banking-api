@@ -7,6 +7,7 @@ import {
   Param,
   Post,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -16,18 +17,22 @@ import {
 } from '@nestjs/swagger';
 import type { User } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/auth.guard';
+import { AuditAction } from 'src/common/decorators/audit-action.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { AuditInterceptor } from 'src/common/interceptor/audit_log.interceptor';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 
 @Controller('accounts')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
+@UseInterceptors(AuditInterceptor)
 export class AccountsController {
   constructor(private readonly accountsService: AccountsService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @AuditAction('CREATE_ACCOUNT', 'Account')
   @ApiOperation({
     summary: 'Créer un nouveau compte bancaire',
     description:

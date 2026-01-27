@@ -7,6 +7,7 @@ import {
   Param,
   Post,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -14,8 +15,10 @@ import {
   ApiParam,
   ApiResponse,
 } from '@nestjs/swagger';
-import type { User } from '@prisma/client';
+import { type User } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/auth.guard';
+import { AuditAction } from 'src/common/decorators/audit-action.decorator';
+import { AuditInterceptor } from 'src/common/interceptor/audit_log.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { TransactionsService } from './transactions.service';
@@ -23,11 +26,13 @@ import { TransactionsService } from './transactions.service';
 @Controller('transactions')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
+@UseInterceptors(AuditInterceptor)
 export class TransactionsController {
   constructor(private transactionsService: TransactionsService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @AuditAction('CREATE_TRANSACTION', 'Transaction')
   @ApiOperation({
     summary: 'Créer une transaction',
     description: `
