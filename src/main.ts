@@ -50,6 +50,8 @@ async function bootstrap() {
       'transactions',
       'Gestion des transactions (dépôts, retraits, virements)',
     )
+    .addTag('audit-log', "Logs d'activité des utilisateurs")
+    .addTag('health', "Vérification de l'état de l'API")
     .addBearerAuth(
       {
         type: 'http',

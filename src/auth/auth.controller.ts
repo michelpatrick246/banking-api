@@ -13,6 +13,7 @@ import {
   ApiBody,
   ApiOperation,
   ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import { Role, type User } from '@prisma/client';
 import { AuditAction } from 'src/common/decorators/audit-action.decorator';
@@ -24,6 +25,8 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+
+@ApiTags('auth')
 @Controller('auth')
 @UseInterceptors(AuditInterceptor)
 export class AuthController {

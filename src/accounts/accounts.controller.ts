@@ -14,6 +14,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import type { User } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/auth.guard';
@@ -23,6 +24,7 @@ import { AuditInterceptor } from 'src/common/interceptor/audit_log.interceptor';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 
+@ApiTags('accounts')
 @Controller('accounts')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')

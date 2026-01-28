@@ -1,15 +1,15 @@
 import {
-    Controller,
-    Get,
-    ParseIntPipe,
-    Query,
-    UseGuards,
+  Controller,
+  Get,
+  ParseIntPipe,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
-    ApiBearerAuth,
-    ApiOperation,
-    ApiQuery,
-    ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
 } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/auth.guard';
@@ -18,7 +18,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { AuditLogService } from './audit_log.service';
 
-@ApiTags('Audit Log')
+@ApiTags('audit-log')
 @Controller('audit-log')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('JWT-auth')
