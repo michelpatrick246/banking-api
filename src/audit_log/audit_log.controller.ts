@@ -44,7 +44,7 @@ export class AuditLogController {
   @ApiOperation({
     summary: "Obtenir les logs d'activité récents",
     description:
-      "Retourne les logs d'activité les plus récents de tous les utilisateurs",
+      "Retourne les logs d'activité les plus récents de tous les utilisateurs(ADMIN)",
   })
   @ApiQuery({ name: 'limit', required: false, example: 100 })
   async getRecentLogs(@Query('limit', ParseIntPipe) limit?: number) {

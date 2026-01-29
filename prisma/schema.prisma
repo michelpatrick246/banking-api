@@ -47,6 +47,13 @@ model Account {
   outgoingTransactions Transaction[] @relation("outgoingTransactions")
   incomingTransactions Transaction[] @relation("incomingTransactions")
 
+  dailyWithdrawalLimit Decimal      @default(500) @db.Decimal(15, 2)
+  dailyTransferLimit Decimal      @default(5000.0) @db.Decimal(15, 2)
+  monthlyTransferLimit Decimal     @default(20000.0) @db.Decimal(15, 2)
+  maxTransactionsPerDay Int         @default(50)
+
+  @@index([userId, accountNumber])
+
 }
 
 model Transaction {
