@@ -6,9 +6,9 @@ import {
 import {
   AccountStatus,
   TransactionStatus,
-  TransactionType
+  TransactionType,
 } from '@prisma/client';
-import { AuditLogService } from 'src/audit_log/audit_log.service';
+import { AccountsLimitService } from 'src/accounts/accounts-limit.service';
 import { DatabaseService } from 'src/database/database.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 
@@ -16,18 +16,34 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 export class TransactionsService {
   constructor(
     private readonly databaseService: DatabaseService,
-    private readonly auditLogService: AuditLogService,
+    private readonly accountLimitsService: AccountsLimitService,
   ) {}
 
   async create(userId: number, createTransactionDto: CreateTransactionDto) {
     const { type, amount, sourceAccountId, destinationAccountNumber } =
       createTransactionDto;
 
+    // ✅ VÉRIFIER LES LIMITES AVANT LA TRANSACTION
+    if (
+      sourceAccountId &&
+      (type === TransactionType.WITHDRAWAL || type === TransactionType.TRANSFER)
+    ) {
+      const limitCheck = await this.accountLimitsService.checkTransactionLimits(
+        sourceAccountId,
+        type,
+        amount,
+      );
+
+      if (!limitCheck.allowed) {
+        throw new BadRequestException(limitCheck.reason);
+      }
+    }
+
     switch (type) {
       case TransactionType.DEPOSIT:
         return this.deposit(userId, createTransactionDto);
-      //   case TransactionType.WITHDRAWAL:
-      //     return this.withdrawal(userId, createTransactionDto);
+      case TransactionType.WITHDRAWAL:
+        return this.withdrawal(userId, createTransactionDto);
       case TransactionType.TRANSFER:
         if (!sourceAccountId || !destinationAccountNumber) {
           throw new BadRequestException(
@@ -174,5 +190,49 @@ export class TransactionsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  private async withdrawal(userId: number, dto: CreateTransactionDto) {
+    const transaction = await this.databaseService.$transaction(async (tx) => {
+      const account = await tx.account.findUnique({
+        where: { id: dto.sourceAccountId, userId },
+      });
+
+      if (!account) {
+        throw new NotFoundException('Account not found');
+      }
+
+      if (account.status !== AccountStatus.ACTIVE) {
+        throw new BadRequestException('Account is not active');
+      }
+
+      const newBalance = Number(account.balance) - dto.amount;
+      const minBalance = -Number(account.overdraftLimit);
+
+      if (newBalance < minBalance) {
+        throw new BadRequestException('Insufficient funds');
+      }
+
+      await tx.account.update({
+        where: { id: dto.sourceAccountId },
+        data: {
+          balance: {
+            decrement: dto.amount,
+          },
+        },
+      });
+
+      return await tx.transaction.create({
+        data: {
+          type: dto.type,
+          amount: dto.amount,
+          description: dto.description,
+          sourceAccountId: account.id,
+          status: TransactionStatus.COMPLETED,
+        },
+      });
+    });
+
+    return transaction;
   }
 }

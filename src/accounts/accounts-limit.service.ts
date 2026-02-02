@@ -62,15 +62,47 @@ export class AccountsLimitService {
     return { allowed: true };
   }
 
+  /**
+   * Vérifie la limite de retrait quotidien
+   */
   private async checkDailyWithdrawalLimit(
     accountId: string,
     amount: number,
     limit: Decimal,
   ): Promise<LimitCheckResult> {
-    return { allowed: true };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayWithdrawals = await this.db.transaction.aggregate({
+      where: {
+        sourceAccountId: accountId,
+        type: TransactionType.WITHDRAWAL,
+        status: 'COMPLETED',
+        createdAt: { gte: today },
+      },
+      _sum: { amount: true },
+    });
+
+    const currentUsage = Number(todayWithdrawals._sum.amount || 0);
+    const limitValue = Number(limit);
+    const newTotal = currentUsage + amount;
+
+    if (newTotal > limitValue) {
+      return {
+        allowed: false,
+        reason: `Daily withdrawal limit exceeded. Limit: ${limitValue}€, Current: ${currentUsage}€, Requested: ${amount}€`,
+        currentUsage,
+        limit: limitValue,
+      };
+    }
+
+    return { allowed: true, currentUsage, limit: limitValue };
   }
 
-  async checkDailyTransferLimit(
+  /**
+   * Vérifie la limite de virement quotidien
+   */
+  private async checkDailyTransferLimit(
     accountId: string,
     amount: number,
     limit: Decimal,
@@ -103,18 +135,74 @@ export class AccountsLimitService {
     return { allowed: true, currentUsage, limit: limitValue };
   }
 
+  /**
+   * Vérifie la limite de virement mensuel
+   */
   private async checkMonthlyTransferLimit(
     accountId: string,
     amount: number,
     limit: Decimal,
   ): Promise<LimitCheckResult> {
-    return { allowed: true };
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const monthTransfers = await this.db.transaction.aggregate({
+      where: {
+        sourceAccountId: accountId,
+        type: TransactionType.TRANSFER,
+        status: 'COMPLETED',
+        createdAt: { gte: startOfMonth },
+      },
+      _sum: { amount: true },
+    });
+
+    const currentUsage = Number(monthTransfers._sum.amount || 0);
+    const limitValue = Number(limit);
+    const newTotal = currentUsage + amount;
+
+    if (newTotal > limitValue) {
+      return {
+        allowed: false,
+        reason: `Monthly transfer limit exceeded. Limit: ${limitValue}€, Current: ${currentUsage}€, Requested: ${amount}€`,
+        currentUsage,
+        limit: limitValue,
+      };
+    }
+
+    return { allowed: true, currentUsage, limit: limitValue };
   }
 
+  /**
+   * Vérifie le nombre de transactions quotidiennes
+   */
   private async checkDailyTransactionCount(
     accountId: string,
-    maxCount: number,
+    maxTransactions: number,
   ): Promise<LimitCheckResult> {
-    return { allowed: true };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayCount = await this.db.transaction.count({
+      where: {
+        OR: [
+          { sourceAccountId: accountId },
+          { destinationAccountId: accountId },
+        ],
+        status: 'COMPLETED',
+        createdAt: { gte: today },
+      },
+    });
+
+    if (todayCount >= maxTransactions) {
+      return {
+        allowed: false,
+        reason: `Daily transaction limit reached. Maximum: ${maxTransactions}, Current: ${todayCount}`,
+        currentUsage: todayCount,
+        limit: maxTransactions,
+      };
+    }
+
+    return { allowed: true, currentUsage: todayCount, limit: maxTransactions };
   }
 }

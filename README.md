@@ -18,6 +18,11 @@ Elle permet de gérer des **comptes bancaires**, des **transactions** (dépôt, 
   - Dépôt (deposit)
   - Retrait (withdraw)
   - Transfert entre comptes
+  - Limites de transactions
+    - Limite journalière
+    - Limite mensuelle
+    - Contrôle des montants cumulés
+    - Prévention des abus et fraudes basiques
 
 - 🔁 Transactions atomiques avec Prisma
 - 📊 Health checks (base de données)
