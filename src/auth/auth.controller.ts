@@ -15,22 +15,25 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { Role, type User } from '@prisma/client';
+import { type User } from '@prisma/client';
 import { AuditAction } from 'src/common/decorators/audit-action.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { Roles } from 'src/common/decorators/roles.decorator';
 import { AuditInterceptor } from 'src/common/interceptor/audit_log.interceptor';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { JwtAuthGuard } from './guards/auth.guard';
-import { RolesGuard } from './guards/roles.guard';
+import { OtpService } from './otp.service';
 
 @ApiTags('auth')
 @Controller('auth')
 @UseInterceptors(AuditInterceptor)
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly otpService: OtpService,
+  ) {}
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -130,34 +133,47 @@ export class AuthController {
     return user;
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  @Get('admin')
+  @Post('verify-otp')
+  @ApiOperation({
+    summary: 'Vérifier le code OTP',
+    description: 'Finalise la connexion après vérification du code 2FA',
+  })
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+    return this.authService.verifyLoginOtp(
+      verifyOtpDto.userId,
+      verifyOtpDto.code,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/enable')
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
-    summary: 'Accès administrateur',
+    summary: 'Activer le 2FA',
     description:
-      'Point de terminaison accessible uniquement aux administrateurs.',
+      "Active l'authentification à deux facteurs et génère des codes de backup",
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Accès administrateur accordé',
-    schema: {
-      example: 'Admin access granted',
-    },
+  async enable2FA(@CurrentUser() user: any) {
+    const result = await this.otpService.enable2FA(user.id);
+
+    return {
+      message: '2FA enabled successfully',
+      backupCodes: result.backupCodes,
+      warning:
+        'Save these backup codes in a secure place. You will not see them again.',
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/disable')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Désactiver le 2FA',
+    description: "Désactive l'authentification à deux facteurs",
   })
-  @ApiResponse({
-    status: 403,
-    description: 'Accès refusé pour les utilisateurs non administrateurs',
-    schema: {
-      example: {
-        statusCode: 403,
-        message: 'Forbidden resource',
-        error: 'Forbidden',
-      },
-    },
-  })
-  testAdmin() {
-    return 'Admin access granted';
+  async disable2FA(@CurrentUser() user: any) {
+    await this.otpService.disable2FA(user.id);
+
+    return { message: '2FA disabled successfully' };
   }
 }

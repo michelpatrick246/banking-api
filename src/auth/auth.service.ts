@@ -1,16 +1,18 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { User } from '@prisma/client';
+import { OtpType, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { DatabaseService } from 'src/database/database.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { OtpService } from './otp.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly jwtService: JwtService,
+    private readonly otpService: OtpService,
   ) {}
 
   async registerUser(registerUserDto: RegisterDto) {
@@ -47,6 +49,15 @@ export class AuthService {
       throw new UnauthorizedException('Account is inactive');
     }
 
+    if (user.twoFactorEnabled) {
+      await this.otpService.generateAndSendOtp(user.id, OtpType.LOGIN);
+      return {
+        requiresOtp: true,
+        userId: user.id,
+        message: 'Verification code sent to your email',
+      };
+    }
+
     return this.generateJwtToken(user);
   }
 
@@ -66,5 +77,31 @@ export class AuthService {
   validateUser(userId: number): Promise<User | null> {
     console.log('Validating user with ID:', userId);
     return this.databaseService.user.findUnique({ where: { id: userId } });
+  }
+
+  /**
+   * Vérifie l'OTP et finalise la connexion
+   */
+  async verifyLoginOtp(userId: number, code: string) {
+    // Vérifier le code OTP
+    const isValid = await this.otpService.verifyOtp(
+      userId,
+      code,
+      OtpType.LOGIN,
+    );
+
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid verification code');
+    }
+
+    const user = await this.databaseService.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return this.generateJwtToken(user);
   }
 }

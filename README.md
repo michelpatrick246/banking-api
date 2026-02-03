@@ -7,7 +7,11 @@ Elle permet de gérer des **comptes bancaires**, des **transactions** (dépôt, 
 
 ## 🚀 Fonctionnalités
 
-- 🔐 Authentification & autorisation (JWT)
+- 🔐 Authentification & autorisation
+  - JWT(access token)
+  - Authentification a deux facteurs (2FA/OTP)
+    - OTP par email
+    - Expiration et tentative limitée
 - 👤 Gestion des utilisateurs
 - 🏦 Gestion des comptes bancaires
   - Création de comptes
