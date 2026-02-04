@@ -1,22 +1,22 @@
+import {
+  BodyContentType,
+  Configuration,
+  EmailsApi,
+} from '@elasticemail/elasticemail-client-ts-axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private transporter: nodemailer.Transporter;
+  private emailAPI: EmailsApi;
 
   constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get('SMTP_HOST') || 'smtp.gmail.com',
-      port: this.configService.get('SMTP_PORT') || 587,
-      secure: false,
-      auth: {
-        user: this.configService.get('SMTP_USER'),
-        pass: this.configService.get('SMTP_PASSWORD'),
-      },
-    });
+    this.emailAPI = new EmailsApi(
+      new Configuration({
+        apiKey: this.configService.get('EMAIL_API_KEY'),
+      }),
+    );
   }
 
   /**
@@ -24,18 +24,25 @@ export class EmailService {
    */
   async sendOtpEmail(to: string, code: string, type: string): Promise<void> {
     try {
-      const subject = this.getSubject(type);
-      const html = this.getOtpTemplate(code, type);
+      const emailMessageData = {
+        Recipients: [
+          {
+            Email: to,
+          },
+        ],
+        Content: {
+          Subject: this.getSubject(type),
+          Body: [
+            {
+              ContentType: BodyContentType.Html,
+              Content: this.getOtpTemplate(code, type),
+            },
+          ],
+          From: this.configService.get('EMAIL_FROM'),
+        },
+      };
 
-      console.log('SMTP_USER: ' + this.configService.get('SMTP_USER'));
-
-      await this.transporter.sendMail({
-        from: `"Banking API" <${this.configService.get('SMTP_FROM')}>`,
-        to,
-        subject,
-        html,
-      });
-
+      await this.emailAPI.emailsPost(emailMessageData);
       this.logger.log(`OTP email sent to ${to}`);
     } catch (error) {
       this.logger.error(`Failed to send OTP email: ${error.message}`);
